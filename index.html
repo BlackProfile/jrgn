@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ghost Quota Drainer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        /* CSS Variables untuk Sistem Tema Dinamis */
+        :root {
+            --primary: #22c55e; /* Green */
+            --primary-hover: #16a34a;
+            --primary-glow: rgba(34, 197, 94, 0.4);
+            --primary-glow-strong: rgba(34, 197, 94, 0.6);
+            --primary-bg-light: rgba(34, 197, 94, 0.1);
+            --primary-bg-dark: rgba(34, 197, 94, 0.95);
+        }
+        [data-theme="cyberpunk"] {
+            --primary: #ef4444; /* Red */
+            --primary-hover: #dc2626;
+            --primary-glow: rgba(239, 68, 68, 0.4);
+            --primary-glow-strong: rgba(239, 68, 68, 0.6);
+            --primary-bg-light: rgba(239, 68, 68, 0.1);
+            --primary-bg-dark: rgba(239, 68, 68, 0.95);
+        }
+        [data-theme="synthwave"] {
+            --primary: #a855f7; /* Purple */
+            --primary-hover: #9333ea;
+            --primary-glow: rgba(168, 85, 247, 0.4);
+            --primary-glow-strong: rgba(168, 85, 247, 0.6);
+            --primary-bg-light: rgba(168, 85, 247, 0.1);
+            --primary-bg-dark: rgba(168, 85, 247, 0.95);
+        }
+        [data-theme="tech"] {
+            --primary: #3b82f6; /* Blue */
+            --primary-hover: #2563eb;
+            --primary-glow: rgba(59, 130, 246, 0.4);
+            --primary-glow-strong: rgba(59, 130, 246, 0.6);
+            --primary-bg-light: rgba(59, 130, 246, 0.1);
+            --primary-bg-dark: rgba(59, 130, 246, 0.95);
+        }
+
+        body {
+            background-color: #0f172a; /* slate-900 */
+            color: var(--primary);
+            font-family: 'Courier New', Courier, monospace;
+            transition: color 0.3s ease;
+        }
+
+        /* Kelas Utilitas Tema Kustom */
+        .text-theme { color: var(--primary) !important; transition: color 0.3s ease; }
+        .border-theme { border-color: var(--primary) !important; transition: border-color 0.3s ease; }
+        .accent-theme { accent-color: var(--primary); }
+        .glow { text-shadow: 0 0 10px var(--primary); transition: text-shadow 0.3s ease; }
+        .box-glow { box-shadow: 0 0 15px var(--primary-glow); transition: box-shadow 0.3s ease; }
+        .focus-border-theme:focus { border-color: var(--primary) !important; outline: none; }
+        .svg-theme { stroke: var(--primary); transition: stroke 0.3s ease; }
+
+        /* Tombol Dinamis */
+        .btn-primary {
+            background-color: var(--primary-hover);
+            color: white;
+            box-shadow: 0 0 15px var(--primary-glow);
+            transition: all 0.3s ease;
+        }
+        .btn-primary:hover:not(:disabled) {
+            background-color: var(--primary);
+            box-shadow: 0 0 25px var(--primary-glow-strong);
+        }
+        .btn-primary:disabled {
+            background-color: #334155; /* slate-700 */
+            color: #94a3b8; /* slate-400 */
+            box-shadow: none;
+            cursor: not-allowed;
+        }
+
+        .btn-danger {
+            background-color: #dc2626; /* red-600 */
+            color: white;
+            box-shadow: 0 0 15px rgba(239,68,68,0.4);
+            transition: all 0.3s ease;
+        }
+        .btn-danger:hover:not(:disabled) {
+            background-color: #ef4444; /* red-500 */
+            box-shadow: 0 0 25px rgba(239,68,68,0.6);
+        }
+        .btn-danger:disabled {
+            background-color: #334155;
+            color: #94a3b8;
+            box-shadow: none;
+            cursor: not-allowed;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #0f172a; }
+        ::-webkit-scrollbar-thumb { background: var(--primary); border-radius: 4px; }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-4">
+
+    <div class="max-w-2xl w-full bg-slate-800 border border-theme rounded-lg p-6 box-glow relative overflow-hidden">
+        
+        <!-- Pilihan Tema (Fitur 5) -->
+        <div class="absolute top-4 right-4 flex gap-2 z-10 bg-slate-900/50 p-2 rounded-full border border-slate-700">
+            <button onclick="setTheme('default')" class="w-4 h-4 rounded-full bg-green-500 ring-2 ring-transparent hover:ring-slate-300 transition-all" title="Hacker (Hijau)"></button>
+            <button onclick="setTheme('cyberpunk')" class="w-4 h-4 rounded-full bg-red-500 ring-2 ring-transparent hover:ring-slate-300 transition-all" title="Cyberpunk (Merah)"></button>
+            <button onclick="setTheme('synthwave')" class="w-4 h-4 rounded-full bg-purple-500 ring-2 ring-transparent hover:ring-slate-300 transition-all" title="Synthwave (Ungu)"></button>
+            <button onclick="setTheme('tech')" class="w-4 h-4 rounded-full bg-blue-500 ring-2 ring-transparent hover:ring-slate-300 transition-all" title="Tech (Biru)"></button>
+        </div>
+
+        <!-- Elemen Latar Belakang Dekoratif -->
+        <div class="absolute -top-10 -left-10 opacity-10 pointer-events-none">
+            <svg class="svg-theme" xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M9 10h.01"/><path d="M15 10h.01"/><path d="M12 2a8 8 0 0 0-8 8v12l3-3 2.5 2.5L12 19l2.5 2.5L17 19l3 3V10a8 8 0 0 0-8-8z"/>
+            </svg>
+        </div>
+
+        <div class="text-center mb-4 mt-4">
+            <h1 class="text-3xl font-bold glow text-theme mb-2 flex items-center justify-center gap-2">
+                <svg class="svg-theme" xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 10h.01"/><path d="M15 10h.01"/><path d="M12 2a8 8 0 0 0-8 8v12l3-3 2.5 2.5L12 19l2.5 2.5L17 19l3 3V10a8 8 0 0 0-8-8z"/></svg>
+                GHOST DRAINER
+            </h1>
+            <p class="text-slate-400 text-sm">Menghabiskan kuota tanpa menyimpan file ke penyimpanan.</p>
+            
+            <!-- Indikator Layar Terkunci (Fitur 1) -->
+            <div id="wakeLockStatus" class="hidden items-center justify-center gap-1 mt-2 text-xs text-yellow-500 bg-yellow-900/20 py-1 px-3 rounded-full border border-yellow-700/50 mx-auto w-max transition-all">
+                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                Layar Dipaksa Menyala (Anti-Sleep)
+            </div>
+        </div>
+
+        <!-- Statistik Sepanjang Masa -->
+        <div class="text-center text-xs text-slate-500 mb-6 border-b border-slate-700 pb-4">
+            TOTAL DIHABISKAN (SEPANGJANG MASA): <span id="allTimeDataDisplay" class="font-bold text-theme glow text-sm">0.00 MB</span>
+        </div>
+
+        <div class="bg-slate-900 border border-slate-700 rounded p-4 mb-4 relative overflow-hidden">
+            <!-- Indikator Pindah Server Otomatis -->
+            <div id="switchIndicator" class="hidden absolute top-0 left-0 w-full h-full bg-blue-900/90 rounded flex flex-col items-center justify-center text-white p-4 text-center z-10 transition-opacity duration-300">
+                <span class="text-sm font-bold mb-1 flex items-center gap-2">
+                    <svg class="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                    KONEKSI TERPUTUS! PINDAH SERVER...
+                </span>
+                <span class="text-xs text-blue-200" id="switchMessage">Mencari jalur koneksi baru...</span>
+            </div>
+
+            <!-- Indikator Selesai -->
+            <div id="finishIndicator" class="hidden absolute top-0 left-0 w-full h-full rounded flex flex-col items-center justify-center text-white p-4 text-center z-20 transition-opacity duration-300" style="background-color: var(--primary-bg-dark);">
+                <span class="text-2xl font-bold mb-2 flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+                    SELESAI!
+                </span>
+                <span class="text-sm text-slate-200 mb-4" id="finishMessage">Target batas Anda telah tercapai.</span>
+                <button onclick="document.getElementById('finishIndicator').classList.add('hidden')" class="px-6 py-2 bg-slate-800 border border-theme text-theme rounded hover:bg-slate-700 transition-colors font-bold">TUTUP</button>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4 text-center">
+                <div>
+                    <p class="text-slate-400 text-xs uppercase tracking-wider">Kecepatan</p>
+                    <p class="text-2xl font-bold text-cyan-400" id="speedDisplay">0.00 <span class="text-sm">Mbps</span></p>
+                </div>
+                <div>
+                    <p class="text-slate-400 text-xs uppercase tracking-wider">Tersedot (Sesi Ini)</p>
+                    <p class="text-2xl font-bold glow text-theme" id="dataDisplay">0.00 <span class="text-sm">MB</span></p>
+                </div>
+            </div>
+            
+            <!-- Grafik Kecepatan Real-time -->
+            <div class="mt-4 pt-4 border-t border-slate-700 h-32 relative">
+                <canvas id="speedChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Kontrol Batasan -->
+        <div class="grid grid-cols-2 gap-4 mb-4">
+            <div>
+                <label class="block text-slate-400 text-xs mb-1">Batas Kuota (MB)</label>
+                <input type="number" id="limitInput" placeholder="0 = Tanpa Batas" min="0" class="w-full bg-slate-900 border border-slate-700 text-theme rounded p-2 text-sm focus-border-theme transition-colors">
+            </div>
+            <div>
+                <label class="block text-slate-400 text-xs mb-1">Timer (Menit)</label>
+                <input type="number" id="timerInput" placeholder="0 = Tanpa Batas" min="0" class="w-full bg-slate-900 border border-slate-700 text-theme rounded p-2 text-sm focus-border-theme transition-colors">
+            </div>
+        </div>
+
+        <!-- Pilihan Server -->
+        <div class="mb-4">
+            <label class="block text-slate-400 text-sm mb-1">Server Aktif (Anti-Adblocker)</label>
+            <select id="serverSelect" class="w-full bg-slate-900 border border-slate-700 text-theme rounded p-2 text-sm focus-border-theme transition-colors">
+                <!-- Opsi akan diisi oleh JavaScript -->
+            </select>
+        </div>
+
+        <div class="space-y-4 mb-6">
+            <div>
+                <label class="block text-slate-400 text-sm mb-1">Tingkat Agresivitas (Koneksi Paralel)</label>
+                <input type="range" id="workersSlider" min="1" max="10" value="4" class="w-full accent-theme">
+                <div class="flex justify-between text-xs text-slate-500 mt-1">
+                    <span>1 (Santai)</span>
+                    <span id="workerCountLabel">4 Koneksi</span>
+                    <span>10 (Brutal)</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="flex gap-4">
+            <button id="startBtn" onclick="startDraining()" class="flex-1 btn-primary font-bold py-3 px-4 rounded flex items-center justify-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+                MULAI SEDOT
+            </button>
+            <button id="stopBtn" onclick="stopDraining()" disabled class="flex-1 btn-danger font-bold py-3 px-4 rounded flex items-center justify-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect></svg>
+                BERHENTI
+            </button>
+        </div>
+
+    </div>
+
+    <script>
+        let isRunning = false;
+        let totalBytes = 0;
+        let lastTotalBytes = 0;
+        let allTimeBytes = parseInt(localStorage.getItem('ghostTotalBytes')) || 0;
+        
+        let speedInterval;
+        let activeControllers = [];
+        let consecutiveErrors = 0;
+        
+        // Target & Timer
+        let targetLimitBytes = 0;
+        let endTime = 0;
+
+        // Wake Lock API Variables
+        let wakeLock = null;
+
+        // Inisialisasi Chart.js
+        Chart.defaults.color = '#64748b';
+        Chart.defaults.font.family = "'Courier New', Courier, monospace";
+        
+        const ctx = document.getElementById('speedChart').getContext('2d');
+        const speedChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: Array(20).fill(''),
+                datasets: [{
+                    label: 'Mbps',
+                    data: Array(20).fill(0),
+                    borderColor: '#22c55e',
+                    backgroundColor: 'rgba(34, 197, 94, 0.1)',
+                    borderWidth: 2,
+                    pointRadius: 0,
+                    fill: true,
+                    tension: 0.4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                animation: { duration: 0 },
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: { display: false },
+                    y: { 
+                        beginAtZero: true,
+                        grid: { color: 'rgba(100, 116, 139, 0.2)' },
+                        border: { display: false }
+                    }
+                }
+            }
+        });
+
+        // Elemen UI
+        const startBtn = document.getElementById('startBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const speedDisplay = document.getElementById('speedDisplay');
+        const dataDisplay = document.getElementById('dataDisplay');
+        const allTimeDataDisplay = document.getElementById('allTimeDataDisplay');
+        const workersSlider = document.getElementById('workersSlider');
+        const workerCountLabel = document.getElementById('workerCountLabel');
+        const switchIndicator = document.getElementById('switchIndicator');
+        const switchMessage = document.getElementById('switchMessage');
+        const finishIndicator = document.getElementById('finishIndicator');
+        const finishMessage = document.getElementById('finishMessage');
+        const serverSelect = document.getElementById('serverSelect');
+        const limitInput = document.getElementById('limitInput');
+        const timerInput = document.getElementById('timerInput');
+        const wakeLockStatus = document.getElementById('wakeLockStatus');
+
+        /* ============================
+           SISTEM TEMA (FITUR 5)
+        ============================ */
+        function setTheme(themeName) {
+            document.body.setAttribute('data-theme', themeName);
+            localStorage.setItem('ghostTheme', themeName);
+            
+            // Perbarui warna Grafik Chart.js
+            setTimeout(() => {
+                const rootStyles = getComputedStyle(document.body);
+                const primaryColor = rootStyles.getPropertyValue('--primary').trim();
+                const primaryBgLight = rootStyles.getPropertyValue('--primary-bg-light').trim();
+                
+                speedChart.data.datasets[0].borderColor = primaryColor;
+                speedChart.data.datasets[0].backgroundColor = primaryBgLight;
+                speedChart.update();
+            }, 50); // Delay sedikit untuk membiarkan browser me-render CSS
+        }
+
+        // Muat tema yang tersimpan saat pertama kali dibuka
+        const savedTheme = localStorage.getItem('ghostTheme') || 'default';
+        setTheme(savedTheme);
+
+        /* ============================
+           SIMPAN DATA & PENGATURAN SECARA PERMANEN
+        ============================ */
+        // Muat pengaturan yang tersimpan (jika ada)
+        if (localStorage.getItem('ghostLimit')) limitInput.value = localStorage.getItem('ghostLimit');
+        if (localStorage.getItem('ghostTimer')) timerInput.value = localStorage.getItem('ghostTimer');
+        if (localStorage.getItem('ghostWorkers')) {
+            workersSlider.value = localStorage.getItem('ghostWorkers');
+            workerCountLabel.innerText = `${workersSlider.value} Koneksi`;
+        }
+
+        // Event listener untuk menyimpan setiap perubahan pengaturan seketika
+        limitInput.addEventListener('input', (e) => localStorage.setItem('ghostLimit', e.target.value));
+        timerInput.addEventListener('input', (e) => localStorage.setItem('ghostTimer', e.target.value));
+        
+        // Simpan total byte tepat sebelum tab/browser ditutup (mencegah data hilang jika tidak distop manual)
+        window.addEventListener('beforeunload', () => {
+            localStorage.setItem('ghostTotalBytes', allTimeBytes);
+        });
+
+
+        /* ============================
+           WAKE LOCK API (FITUR 1)
+        ============================ */
+        async function requestWakeLock() {
+            try {
+                if ('wakeLock' in navigator) {
+                    wakeLock = await navigator.wakeLock.request('screen');
+                    wakeLockStatus.classList.remove('hidden');
+                    wakeLockStatus.classList.add('flex');
+                    
+                    wakeLock.addEventListener('release', () => {
+                        wakeLockStatus.classList.add('hidden');
+                        wakeLockStatus.classList.remove('flex');
+                    });
+                }
+            } catch (err) {
+                console.error(`Gagal mengaktifkan Wake Lock: ${err.name}, ${err.message}`);
+            }
+        }
+
+        function releaseWakeLock() {
+            if (wakeLock !== null) {
+                wakeLock.release().then(() => {
+                    wakeLock = null;
+                });
+            }
+        }
+
+        // Jika user pindah tab lalu kembali, aktifkan ulang Wake Lock
+        document.addEventListener('visibilitychange', async () => {
+            if (wakeLock !== null && document.visibilityState === 'visible' && isRunning) {
+                await requestWakeLock();
+            }
+        });
+
+
+        /* ============================
+           LOGIK UTAMA APLIKASI
+        ============================ */
+        allTimeDataDisplay.innerHTML = formatData(allTimeBytes);
+
+        const servers = [
+            { 
+                id: 'wiki_carina', 
+                name: "Server 1: Wikimedia Carina (~18 MB)", 
+                getUrl: () => `https://upload.wikimedia.org/wikipedia/commons/3/3f/Fronteira_Space_Telescope_view_of_the_Carina_Nebula.jpg?cb=${Date.now()}${Math.random()}`
+            },
+            { 
+                id: 'wiki_andromeda', 
+                name: "Server 2: Wikimedia Andromeda (~17 MB)", 
+                getUrl: () => `https://upload.wikimedia.org/wikipedia/commons/c/c3/M31_09-01-2011.jpg?cb=${Date.now()}${Math.random()}`
+            },
+            { 
+                id: 'wiki_earth', 
+                name: "Server 3: Wikimedia Earth (~11 MB)", 
+                getUrl: () => `https://upload.wikimedia.org/wikipedia/commons/9/97/The_Earth_seen_from_Apollo_17.jpg?cb=${Date.now()}${Math.random()}`
+            },
+            {
+                id: 'wiki_hubble',
+                name: "Server 4: Wikimedia Hubble Deep (~16 MB)",
+                getUrl: () => `https://upload.wikimedia.org/wikipedia/commons/6/69/NASA-HS201427a-HubbleUltraDeepField2014-20140603.jpg?cb=${Date.now()}${Math.random()}`
+            },
+            {
+                id: 'wiki_jwst',
+                name: "Server 5: Wikimedia JWST (~14 MB)",
+                getUrl: () => `https://upload.wikimedia.org/wikipedia/commons/c/c8/Webb%27s_First_Deep_Field_%28NIRCam_Image%29.jpg?cb=${Date.now()}${Math.random()}`
+            },
+            {
+                id: 'wiki_mars',
+                name: "Server 6: Wikimedia Mars (~14 MB)",
+                getUrl: () => `https://upload.wikimedia.org/wikipedia/commons/0/02/OSIRIS_Mars_true_color.jpg?cb=${Date.now()}${Math.random()}`
+            },
+            {
+                id: 'wiki_milkyway',
+                name: "Server 7: Wikimedia Milky Way (~17 MB)",
+                getUrl: () => `https://upload.wikimedia.org/wikipedia/commons/4/43/ESO-VLT-Laser-phot-33a-07.jpg?cb=${Date.now()}${Math.random()}`
+            },
+            {
+                id: 'wiki_moon',
+                name: "Server 8: Wikimedia Moon (~11 MB)",
+                getUrl: () => `https://upload.wikimedia.org/wikipedia/commons/e/e1/FullMoon2010.jpg?cb=${Date.now()}${Math.random()}`
+            },
+            {
+                id: 'wiki_saturn',
+                name: "Server 9: Wikimedia Saturn (~10 MB)",
+                getUrl: () => `https://upload.wikimedia.org/wikipedia/commons/c/c7/Saturn_during_Equinox.jpg?cb=${Date.now()}${Math.random()}`
+            },
+            {
+                id: 'wiki_jupiter',
+                name: "Server 10: Wikimedia Jupiter (~10 MB)",
+                getUrl: () => `https://upload.wikimedia.org/wikipedia/commons/e/e2/Jupiter.jpg?cb=${Date.now()}${Math.random()}`
+            }
+        ];
+
+        servers.forEach((srv, index) => {
+            const option = document.createElement('option');
+            option.value = index;
+            option.text = srv.name;
+            serverSelect.appendChild(option);
+        });
+
+        // Muat pilihan server terakhir yang tersimpan
+        if (localStorage.getItem('ghostServer')) {
+            serverSelect.value = localStorage.getItem('ghostServer');
+        }
+
+        workersSlider.addEventListener('input', (e) => {
+            workerCountLabel.innerText = `${e.target.value} Koneksi`;
+            localStorage.setItem('ghostWorkers', e.target.value); // Simpan slider koneksi
+        });
+
+        serverSelect.addEventListener('change', (e) => {
+            consecutiveErrors = 0; 
+            localStorage.setItem('ghostServer', e.target.value); // Simpan pilihan server
+        });
+
+        function formatData(bytes) {
+            if (bytes === 0) return '0.00 MB';
+            const mb = bytes / (1024 * 1024);
+            if (mb > 1024) {
+                return (mb / 1024).toFixed(2) + ' GB';
+            }
+            return mb.toFixed(2) + ' MB';
+        }
+
+        function switchServer() {
+            let currentIndex = parseInt(serverSelect.value);
+            let nextIndex = (currentIndex + 1) % servers.length;
+            serverSelect.value = nextIndex;
+            consecutiveErrors = 0;
+            
+            switchMessage.innerText = `Beralih ke ${servers[nextIndex].name}...`;
+            switchIndicator.classList.remove('hidden');
+            
+            setTimeout(() => {
+                switchIndicator.classList.add('hidden');
+            }, 2000);
+        }
+
+        async function drainWorker(workerId) {
+            let retryDelay = 1000;
+            
+            while (isRunning) {
+                const controller = new AbortController();
+                activeControllers.push(controller);
+
+                try {
+                    let currentServerIndex = parseInt(serverSelect.value);
+                    const fetchUrl = servers[currentServerIndex].getUrl();
+                    
+                    const response = await fetch(fetchUrl, {
+                        signal: controller.signal
+                    });
+
+                    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                    if (!response.body) throw new Error("Stream tidak didukung browser");
+
+                    const reader = response.body.getReader();
+                    retryDelay = 1000; 
+                    consecutiveErrors = 0;
+
+                    while (isRunning) {
+                        const { done, value } = await reader.read();
+                        if (done) break;
+                        
+                        if (value) {
+                            totalBytes += value.length;
+                        }
+                    }
+                    
+                    await new Promise(r => setTimeout(r, 100));
+
+                } catch (error) {
+                    if (error.name === 'AbortError') {
+                        // Diabaikan
+                    } else {
+                        console.error(`[Pekerja ${workerId}] gagal:`, error.message);
+                        consecutiveErrors++;
+                        
+                        const numWorkers = parseInt(workersSlider.value);
+                        if(consecutiveErrors > (numWorkers * 2) && isRunning) {
+                            switchServer();
+                            activeControllers.forEach(c => c.abort());
+                            activeControllers = [];
+                            retryDelay = 500; 
+                        } else {
+                            await new Promise(r => setTimeout(r, retryDelay));
+                            retryDelay = Math.min(retryDelay * 1.5, 5000); 
+                        }
+                    }
+                } finally {
+                    activeControllers = activeControllers.filter(c => c !== controller);
+                }
+            }
+        }
+
+        function calculateSpeed() {
+            if (!isRunning) return;
+
+            const bytesPerSecond = totalBytes - lastTotalBytes;
+            lastTotalBytes = totalBytes;
+            
+            // Tambahkan ke statistik sepanjang masa
+            allTimeBytes += bytesPerSecond;
+            localStorage.setItem('ghostTotalBytes', allTimeBytes);
+            allTimeDataDisplay.innerHTML = formatData(allTimeBytes);
+
+            const mbps = (bytesPerSecond * 8) / 1000000;
+
+            speedDisplay.innerHTML = `${mbps.toFixed(2)} <span class="text-sm">Mbps</span>`;
+            dataDisplay.innerHTML = formatData(totalBytes);
+
+            // Perbarui Chart
+            speedChart.data.labels.push('');
+            speedChart.data.datasets[0].data.push(mbps);
+            if (speedChart.data.labels.length > 20) {
+                speedChart.data.labels.shift();
+                speedChart.data.datasets[0].data.shift();
+            }
+            speedChart.update();
+
+            // Cek Batasan Kuota & Timer
+            let limitReached = false;
+            let timerReached = false;
+
+            if (targetLimitBytes > 0 && totalBytes >= targetLimitBytes) limitReached = true;
+            if (endTime > 0 && Date.now() >= endTime) timerReached = true;
+
+            if (limitReached || timerReached) {
+                stopDraining();
+                finishMessage.innerText = limitReached ? `Tercapai: Batas kuota ${limitInput.value} MB terpenuhi.` : `Tercapai: Waktu timer ${timerInput.value} menit habis.`;
+                finishIndicator.classList.remove('hidden');
+            }
+        }
+
+        function startDraining() {
+            if (isRunning) return;
+            
+            // Setup Batasan
+            const limitVal = parseFloat(limitInput.value);
+            targetLimitBytes = (limitVal > 0) ? limitVal * 1024 * 1024 : 0;
+
+            const timerVal = parseFloat(timerInput.value);
+            endTime = (timerVal > 0) ? Date.now() + (timerVal * 60 * 1000) : 0;
+
+            isRunning = true;
+            totalBytes = 0;
+            lastTotalBytes = 0;
+            consecutiveErrors = 0;
+            activeControllers = [];
+            
+            switchIndicator.classList.add('hidden');
+            finishIndicator.classList.add('hidden');
+            
+            // Reset Chart
+            speedChart.data.datasets[0].data = Array(20).fill(0);
+            speedChart.update();
+            
+            // Aktifkan Screen Wake Lock
+            requestWakeLock();
+
+            // UI Update (Tombol & Input)
+            startBtn.disabled = true;
+            stopBtn.disabled = false;
+            workersSlider.disabled = true;
+            workersSlider.classList.add('opacity-50');
+            limitInput.disabled = true;
+            limitInput.classList.add('opacity-50');
+            timerInput.disabled = true;
+            timerInput.classList.add('opacity-50');
+
+            speedInterval = setInterval(calculateSpeed, 1000);
+
+            const numWorkers = parseInt(workersSlider.value);
+            for (let i = 0; i < numWorkers; i++) {
+                drainWorker(i);
+            }
+        }
+
+        function stopDraining() {
+            if(!isRunning) return;
+            isRunning = false;
+            
+            activeControllers.forEach(controller => controller.abort());
+            activeControllers = [];
+
+            clearInterval(speedInterval);
+            
+            // Matikan Screen Wake Lock
+            releaseWakeLock();
+
+            speedDisplay.innerHTML = `0.00 <span class="text-sm">Mbps</span>`;
+            switchIndicator.classList.add('hidden');
+
+            // Kembalikan UI (Tombol & Input)
+            stopBtn.disabled = true;
+            startBtn.disabled = false;
+            workersSlider.disabled = false;
+            workersSlider.classList.remove('opacity-50');
+            limitInput.disabled = false;
+            limitInput.classList.remove('opacity-50');
+            timerInput.disabled = false;
+            timerInput.classList.remove('opacity-50');
+            
+            // Simpan riwayat terakhir
+            localStorage.setItem('ghostTotalBytes', allTimeBytes);
+        }
+    </script>
+</body>
+</html>
