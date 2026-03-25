@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>.</title>
+    <title>Ghost Quota Drainer</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
@@ -123,7 +123,7 @@
         <div class="text-center mb-4 mt-4">
             <h1 class="text-3xl font-bold glow text-theme mb-2 flex items-center justify-center gap-2">
                 <svg class="svg-theme" xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 10h.01"/><path d="M15 10h.01"/><path d="M12 2a8 8 0 0 0-8 8v12l3-3 2.5 2.5L12 19l2.5 2.5L17 19l3 3V10a8 8 0 0 0-8-8z"/></svg>
-                SEDOT JARINGAN
+                GHOST DRAINER
             </h1>
             <p class="text-slate-400 text-sm">Menghabiskan kuota tanpa menyimpan file ke penyimpanan.</p>
             
@@ -533,11 +533,18 @@
         }
 
         function clearHistory() {
-            if(confirm('Apakah Anda yakin ingin menghapus semua catatan riwayat sesi? (Total akumulasi data tidak akan terhapus)')) {
+            if(confirm('Apakah Anda yakin ingin menghapus semua catatan riwayat sesi dan mereset total akumulasi data?')) {
+                // Hapus riwayat sesi
                 sessionHistory = [];
                 localStorage.setItem('ghostSessionHistory', JSON.stringify(sessionHistory));
                 openHistoryModal(); // Refresh tampilan modal
-                showToast('Riwayat sesi berhasil dibersihkan.');
+                
+                // Reset total akumulasi
+                allTimeBytes = 0;
+                localStorage.setItem('ghostTotalBytes', 0);
+                if (allTimeDataDisplay) allTimeDataDisplay.innerHTML = formatData(0);
+
+                showToast('Riwayat sesi dan total akumulasi berhasil di-reset.');
             }
         }
 
